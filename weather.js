@@ -17,74 +17,41 @@ const req = new Request(url);
 req.method = "GET";
 
 try {
-  // 3. 發送請求並取得資料
   const res = await req.loadJSON();
 
-  // 4. 解析 JSON 結構
+  // 3. 解析 JSON 結構
   const f72 = res.data.town.forecast72hr;
   const town = f72.LocationName;
   const temp = f72.Temperature.Time[0].Temperature;
   const pop = f72.ProbabilityOfPrecipitation.Time[0].ProbabilityOfPrecipitation;
   const comfort = f72.ComfortIndex.Time[0].ComfortIndexDescription;
 
-  // 5. 建立 Widget 與 Stack 排版
+  // 4. 使用純文字字元組合
+  // 您可以將 🌡 與 🌧 替換為您從 SF Symbols 複製來的特定字元 (如 􀇬 與 􀇋)
+  const result = `${town}${comfort} 🌡${temp}°C 🌧${pop}%`;
+
+  // 5. 建立小工具
   let w = new ListWidget();
+  let t = w.addText(result);
   
-  let row = w.addStack();
-  row.layoutHorizontally();
-  row.centerAlignContent(); 
-  row.spacing = 0; // 強制移除元素之間的所有預設空格
+  // 必須使用系統字體，iOS 才能正確識別並渲染這些符號
+  t.font = Font.systemFont(14);
+  t.lineLimit = 1;
+  t.minimumScaleFactor = 0.5;
 
-  const fontSize = 14;
-  const font = Font.systemFont(fontSize);
-  const iconColor = Color.dynamic(Color.black(), Color.white());
-
-  // 建立輔助函數：加入文字並防止換行
-  function addText(text) {
-    let t = row.addText(text);
-    t.font = font;
-    t.lineLimit = 1;              // 限制只能單行
-    t.minimumScaleFactor = 0.5;   // 若空間不足則自動縮小字體，而非換行
-  }
-
-  // 建立輔助函數：加入圖示
-  function addIcon(symbolName) {
-    let sym = SFSymbol.named(symbolName);
-    let img = row.addImage(sym.image);
-    img.imageSize = new Size(fontSize, fontSize);
-    img.tintColor = iconColor;
-  }
-
-  // --- 依序組合您的格式 (無任何空格) ---
-  
-  // `${town}${comfort}`
-  addText(`${town}${comfort}`);
-  
-  // `{溫度圖示}`
-  addIcon("thermometer");
-  
-  // `${temp}°C`
-  addText(`${temp}°C`);
-  
-  // `{降雨機率圖示}`
-  addIcon("cloud.rain");
-  
-  // `${pop}%`
-  addText(`${pop}%`);
-
-  // -----------------------------
-
+  // 6. 設定與預覽
   if (config.runsInWidget) {
     Script.setWidget(w);
   } else {
-    w.presentSmall();
+    // 若在 Scriptable App 內測試，使用鎖定畫面(矩形)的模式預覽
+    w.presentAccessoryRectangular(); 
   }
   Script.complete();
 
 } catch (e) {
-  console.error("API 請求或資料處理失敗: " + e);
-  let errorWidget = new ListWidget();
-  errorWidget.addText("載入失敗");
-  Script.setWidget(errorWidget);
+  console.error("處理失敗: " + e);
+  let w = new ListWidget();
+  w.addText("載入失敗");
+  Script.setWidget(w);
   Script.complete();
 }
