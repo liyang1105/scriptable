@@ -28,7 +28,7 @@ try {
 
   // 4. 使用純文字字元組合
   // 您可以將 🌡 與 🌧 替換為您從 SF Symbols 複製來的特定字元 (如 􀇬 與 􀇋)
-  const result = `${town}${comfort} 🌡${temp}°C 🌧${pop}%`;
+  const result = `${town}${comfort}${temp}°C｜🌧 ${pop}%`;
 
   // 5. 建立小工具
   let w = new ListWidget();
