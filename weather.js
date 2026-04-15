@@ -3,68 +3,70 @@ let loc;
 try {
   loc = await Location.current();
 } catch (e) {
-  console.error("無法取得定位");
+  console.error("無法取得定位: " + e);
   Script.complete();
 }
 
 const lat = loc.latitude;
 const lon = loc.longitude;
-const apiKey = Keychain.contains("CWA_API_KEY")
-  ? Keychain.get("CWA_API_KEY")
-  : null;
 
-if (!apiKey) {
-  console.error("請檢查 Keychain 是否已存入 CWA_API_KEY");
-  Script.complete();
-}
-
-// 2. 設定 API
-const url = "https://opendata.cwa.gov.tw/linked/graphql";
-const query = {
-  query: `query town($lat: Float!, $lon: Float!) {
-    town(Longitude: $lon, Latitude: $lat) {
-      townName
-      forecast72hr {
-        Temperature { Time { DataTime, Temperature } }
-        ProbabilityOfPrecipitation { Time { DataTime, ProbabilityOfPrecipitation } }
-        ComfortIndex { Time { DataTime, ComfortIndexDescription } }
-      }
-    }
-  }`,
-  variables: { lat: lat, lon: lon },
-};
+// 2. 設定 n8n Webhook API
+const url = `https://n8n.liyang.dev/webhook/5a37431d-9efa-4ae1-a46b-9de4092405c8?latitude=${lat}&longitude=${lon}`;
 
 const req = new Request(url);
-req.method = "POST";
-req.headers = {
-  "Content-Type": "application/json",
-  Authorization: apiKey, // 將 Key 移至 Header
-};
-req.body = JSON.stringify(query);
+req.method = "GET";
 
 try {
+  // 3. 發送請求並取得資料
   const res = await req.loadJSON();
 
-  if (res.errors) {
-    console.error("API 錯誤: " + JSON.stringify(res.errors));
-    return;
-  }
-
-  const townData = res.data.town;
-  const f72 = townData.forecast72hr;
-
-  // 提取資料 (確保結構存在)
-  const town = townData.townName;
+  // 4. 解析 n8n 回傳的 JSON 結構
+  const f72 = res.data.town.forecast72hr;
+  const town = f72.LocationName;
   const temp = f72.Temperature.Time[0].Temperature;
   const pop = f72.ProbabilityOfPrecipitation.Time[0].ProbabilityOfPrecipitation;
   const comfort = f72.ComfortIndex.Time[0].ComfortIndexDescription;
 
-  const result = `${town} ${temp}°C | 降雨機率 ${pop}% | ${comfort}`;
-  console.log(result);
-
-  // Widget 顯示
+  // 5. 建立 Widget 與水平排版 (Stack)
   let w = new ListWidget();
-  w.addText(result);
+  
+  // 建立一個水平排列的 Stack，並設定垂直居中對齊
+  let row = w.addStack();
+  row.layoutHorizontally();
+  row.centerAlignContent(); 
+
+  // 定義統一的字體大小與適應深淺色的顏色
+  const fontSize = 14;
+  const font = Font.systemFont(fontSize);
+  const iconColor = Color.dynamic(Color.black(), Color.white());
+
+  // --- 開始組合您的輸出格式 ---
+  
+  // (1) 文字: 區域與舒適度
+  let t1 = row.addText(`${town}${comfort} `);
+  t1.font = font;
+
+  // (2) 圖片: 溫度圖示 (SFSymbol)
+  let tempSym = SFSymbol.named("thermometer");
+  let tempImg = row.addImage(tempSym.image);
+  tempImg.imageSize = new Size(fontSize, fontSize);
+  tempImg.tintColor = iconColor;
+
+  // (3) 文字: 溫度與分隔線
+  let t2 = row.addText(` ${temp}°C | `);
+  t2.font = font;
+
+  // (4) 圖片: 降雨機率圖示 (SFSymbol)
+  let rainSym = SFSymbol.named("cloud.rain"); // 若想換成雨傘，可改用 "umbrella.fill"
+  let rainImg = row.addImage(rainSym.image);
+  rainImg.imageSize = new Size(fontSize, fontSize);
+  rainImg.tintColor = iconColor;
+
+  // (5) 文字: 降雨機率數值
+  let t3 = row.addText(` ${pop}%`);
+  t3.font = font;
+
+  // -----------------------------
 
   if (config.runsInWidget) {
     Script.setWidget(w);
@@ -72,7 +74,11 @@ try {
     w.presentSmall();
   }
   Script.complete();
+
 } catch (e) {
-  console.error("處理資料失敗: " + e);
+  console.error("API 請求或資料處理失敗: " + e);
+  let errorWidget = new ListWidget();
+  errorWidget.addText("載入失敗");
+  Script.setWidget(errorWidget);
+  Script.complete();
 }
-console.log(JSON.stringify(res));
