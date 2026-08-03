@@ -28,12 +28,12 @@ try {
 
   // 4. 使用純文字字元組合
   // 您可以將 🌡 與 🌧 替換為您從 SF Symbols 複製來的特定字元 (如 􀇬 與 􀇋)
-  const result = `${comfort}｜🌡 ${temp}°C｜🌧 ${pop}%`;
+  const result = `${town}｜${comfort}${temp}°C｜🌧 ${pop}%`;
 
   // 5. 建立小工具
   let w = new ListWidget();
   let t = w.addText(result);
-  
+
   // 必須使用系統字體，iOS 才能正確識別並渲染這些符號
   t.font = Font.systemFont(14);
   t.lineLimit = 1;
@@ -44,10 +44,10 @@ try {
     Script.setWidget(w);
   } else {
     // 若在 Scriptable App 內測試，使用鎖定畫面(矩形)的模式預覽
-    w.presentAccessoryRectangular(); 
+    w.presentAccessoryRectangular();
   }
   Script.complete();
-
+  
 } catch (e) {
   console.error("處理失敗: " + e);
   let w = new ListWidget();
